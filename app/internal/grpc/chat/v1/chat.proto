@@ -1,0 +1,48 @@
+syntax = "proto3";
+
+package chat.v1;
+
+message User {
+    string user_id = 1;
+    string username = 2;
+}
+
+message ChatRoom {
+    string room_id = 1;
+    repeated User members = 2;
+}
+
+message Message {
+    string message_id = 1;
+    User sender = 2;
+    string content = 3;
+    string timestamp = 4;
+}
+
+service ChatService {
+    rpc JoinChat(JoinChatRequest) returns (stream JoinChatResponse);
+    rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
+    rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
+}
+
+message JoinChatRequest {
+    User user = 1;
+    ChatRoom chat_room = 2;
+}
+message JoinChatResponse {
+    Message message = 1;
+}
+
+message SendMessageRequest {
+    Message message = 1;
+}
+message SendMessageResponse {
+    Message message = 1;
+}
+
+message LeaveChatRequest {
+    User user = 1;
+}
+message LeaveChatResponse {
+    User user = 1;
+}
