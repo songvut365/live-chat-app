@@ -14,6 +14,15 @@ go run app/cmd/server/main.go
 ### Client
 
 ```
+go run app/cmd/client/main.go
+Enter username: doe
+Enter chat room: manga
+[server] : 'doe' join the chat
+[doe] : hello, world
+[jack] : hi doe
+...
+[doe] : /exit
+[server] doe left the chat
 ```
 
 
