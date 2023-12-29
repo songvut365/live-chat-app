@@ -8,26 +8,26 @@ import (
 	"strings"
 )
 
-type IOManager interface {
+type ChatIOManager interface {
 	ReadUsername() (string, error)
 	ReadChatRoom() (string, error)
 	ReadMessage(username string) (string, error)
 	DisplayMessage(message *chatv1.Message, username string)
 }
 
-type ioManager struct {
-	reader *bufio.Reader
+type chatIOManager struct {
+	inputReader *bufio.Reader
 }
 
-func NewIOManager() IOManager {
-	return &ioManager{
-		reader: bufio.NewReader(os.Stdin),
+func NewIOManager() ChatIOManager {
+	return &chatIOManager{
+		inputReader: bufio.NewReader(os.Stdin),
 	}
 }
 
-func (manager *ioManager) ReadUsername() (string, error) {
+func (manager *chatIOManager) ReadUsername() (string, error) {
 	fmt.Printf("Enter your username: ")
-	username, err := manager.reader.ReadString('\n')
+	username, err := manager.inputReader.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
@@ -36,9 +36,9 @@ func (manager *ioManager) ReadUsername() (string, error) {
 	return username, nil
 }
 
-func (manager *ioManager) ReadChatRoom() (string, error) {
+func (manager *chatIOManager) ReadChatRoom() (string, error) {
 	fmt.Printf("Enter chat room: ")
-	chatRoom, err := manager.reader.ReadString('\n')
+	chatRoom, err := manager.inputReader.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
@@ -47,9 +47,9 @@ func (manager *ioManager) ReadChatRoom() (string, error) {
 	return chatRoom, nil
 }
 
-func (manager *ioManager) ReadMessage(username string) (string, error) {
+func (manager *chatIOManager) ReadMessage(username string) (string, error) {
 	fmt.Printf("\r[%s] : ", username)
-	message, err := manager.reader.ReadString('\n')
+	message, err := manager.inputReader.ReadString('\n')
 	if err != nil {
 		return "", err
 	}
@@ -58,11 +58,11 @@ func (manager *ioManager) ReadMessage(username string) (string, error) {
 	return message, nil
 }
 
-func (manager *ioManager) DisplayMessage(message *chatv1.Message, username string) {
+func (manager *chatIOManager) DisplayMessage(receivedMessage *chatv1.Message, username string) {
 	fmt.Printf(
 		"\r[%s] : %s\n[%s] : ", // replace current line
-		message.Sender.Username,
-		message.Content,
+		receivedMessage.Sender.Username,
+		receivedMessage.Content,
 		username,
 	)
 }
