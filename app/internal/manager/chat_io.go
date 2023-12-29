@@ -19,7 +19,7 @@ type chatIOManager struct {
 	inputReader *bufio.Reader
 }
 
-func NewIOManager() ChatIOManager {
+func NewChatIOManager() ChatIOManager {
 	return &chatIOManager{
 		inputReader: bufio.NewReader(os.Stdin),
 	}

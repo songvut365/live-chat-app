@@ -19,7 +19,7 @@ const (
 
 func main() {
 	// new chat client
-	ioManager := manager.NewIOManager()
+	chatIOManager := manager.NewChatIOManager()
 	chatServiceClient := chatv1connect.NewChatServiceClient(http.DefaultClient, address, connect.WithGRPC())
 	chatClient := client.NewChatClient(chatServiceClient)
 
@@ -27,12 +27,12 @@ func main() {
 	userId := uuid.NewString()
 
 	// get username and chat room
-	username, err := ioManager.ReadUsername()
+	username, err := chatIOManager.ReadUsername()
 	if err != nil {
 		log.Fatalf("read username error: %s", err.Error())
 	}
 
-	chatRoom, err := ioManager.ReadChatRoom()
+	chatRoom, err := chatIOManager.ReadChatRoom()
 	if err != nil {
 		log.Fatalf("read chat room error: %s", err.Error())
 	}
@@ -50,14 +50,14 @@ func main() {
 
 		for {
 			if stream.Receive() && stream.Msg().Message.Sender.Username != username {
-				ioManager.DisplayMessage(stream.Msg().Message, username)
+				chatIOManager.DisplayMessage(stream.Msg().Message, username)
 			}
 		}
 	}()
 
 	// infinite loop for reading and sending messages
 	for {
-		message, err := ioManager.ReadMessage(username)
+		message, err := chatIOManager.ReadMessage(username)
 		if err != nil {
 			log.Fatalf("\nread message error: %s", err.Error())
 		}
