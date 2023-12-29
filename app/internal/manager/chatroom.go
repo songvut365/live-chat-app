@@ -13,22 +13,30 @@ type (
 	UserId string
 )
 
-type ChatRoomManager struct {
-	ChatRooms       map[RoomId]map[UserId]*connect.ServerStream[chatv1.JoinChatResponse]
-	ChatRoomsMutex  sync.Mutex
-	LeaveChatSignal chan UserId
+type ChatRoomManager interface {
+	AddConnection(roomId RoomId, userId UserId, stream *connect.ServerStream[chatv1.JoinChatResponse])
+	GetAllConnectionByUserId(userId UserId) []*connect.ServerStream[chatv1.JoinChatResponse]
+	RemoveConnection(userId UserId)
+	LeaveChatSignal() <-chan UserId
+	SendLeaveChatSignal(userId UserId)
 }
 
-func NewChatRoomManager() *ChatRoomManager {
-	return &ChatRoomManager{
+type chatRoomManager struct {
+	ChatRooms       map[RoomId]map[UserId]*connect.ServerStream[chatv1.JoinChatResponse]
+	leaveChatSignal chan UserId
+	chatRoomsMutex  sync.Mutex
+}
+
+func NewChatRoomManager() ChatRoomManager {
+	return &chatRoomManager{
 		ChatRooms:       make(map[RoomId]map[UserId]*connect.ServerStream[chatv1.JoinChatResponse]),
-		LeaveChatSignal: make(chan UserId),
+		leaveChatSignal: make(chan UserId),
 	}
 }
 
-func (manager *ChatRoomManager) AddConnection(roomId RoomId, userId UserId, stream *connect.ServerStream[chatv1.JoinChatResponse]) {
-	manager.ChatRoomsMutex.Lock()
-	defer manager.ChatRoomsMutex.Unlock()
+func (manager *chatRoomManager) AddConnection(roomId RoomId, userId UserId, stream *connect.ServerStream[chatv1.JoinChatResponse]) {
+	manager.chatRoomsMutex.Lock()
+	defer manager.chatRoomsMutex.Unlock()
 
 	if manager.ChatRooms[roomId] == nil {
 		manager.ChatRooms[roomId] = make(map[UserId]*connect.ServerStream[chatv1.JoinChatResponse])
@@ -39,9 +47,9 @@ func (manager *ChatRoomManager) AddConnection(roomId RoomId, userId UserId, stre
 	log.Printf("chat rooms: %+v", manager.ChatRooms)
 }
 
-func (manager *ChatRoomManager) GetAllConnectionByUserId(userId UserId) []*connect.ServerStream[chatv1.JoinChatResponse] {
-	manager.ChatRoomsMutex.Lock()
-	defer manager.ChatRoomsMutex.Unlock()
+func (manager *chatRoomManager) GetAllConnectionByUserId(userId UserId) []*connect.ServerStream[chatv1.JoinChatResponse] {
+	manager.chatRoomsMutex.Lock()
+	defer manager.chatRoomsMutex.Unlock()
 
 	connections := []*connect.ServerStream[chatv1.JoinChatResponse]{}
 
@@ -58,9 +66,9 @@ func (manager *ChatRoomManager) GetAllConnectionByUserId(userId UserId) []*conne
 	return connections
 }
 
-func (manager *ChatRoomManager) RemoveConnection(userId UserId) {
-	manager.ChatRoomsMutex.Lock()
-	defer manager.ChatRoomsMutex.Unlock()
+func (manager *chatRoomManager) RemoveConnection(userId UserId) {
+	manager.chatRoomsMutex.Lock()
+	defer manager.chatRoomsMutex.Unlock()
 
 	for roomId, connection := range manager.ChatRooms {
 		if _, ok := connection[userId]; ok {
@@ -71,4 +79,12 @@ func (manager *ChatRoomManager) RemoveConnection(userId UserId) {
 	}
 
 	log.Printf("chat rooms: %+v", manager.ChatRooms)
+}
+
+func (manager *chatRoomManager) LeaveChatSignal() <-chan UserId {
+	return manager.leaveChatSignal
+}
+
+func (manager *chatRoomManager) SendLeaveChatSignal(userId UserId) {
+	manager.leaveChatSignal <- userId
 }
