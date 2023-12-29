@@ -68,7 +68,7 @@ func main() {
 
 		_, err = chatClient.SendMessage(ctx, userId, username, message)
 		if err != nil {
-			log.Println("\nsend message error: $s", err.Error())
+			log.Fatalf("send message error: %s", err.Error())
 		}
 
 		time.Sleep(time.Millisecond * 100)
