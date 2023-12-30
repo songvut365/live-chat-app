@@ -23,6 +23,7 @@ service ChatService {
     rpc JoinChat(JoinChatRequest) returns (stream JoinChatResponse);
     rpc SendMessage(SendMessageRequest) returns (SendMessageResponse);
     rpc LeaveChat(LeaveChatRequest) returns (LeaveChatResponse);
+    rpc GetChatHistory(GetChatHistoryRequest) returns (GetChatHistoryResponse);
 }
 
 message JoinChatRequest {
@@ -45,4 +46,11 @@ message LeaveChatRequest {
 }
 message LeaveChatResponse {
     User user = 1;
+}
+
+message GetChatHistoryRequest {
+    ChatRoom chat_room = 1;
+}
+message GetChatHistoryResponse {
+    repeated Message message = 1;
 }

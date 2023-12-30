@@ -14,6 +14,7 @@ type ChatClient interface {
 	JoinChat(ctx context.Context, userId, username, chatroom string) (*connect.ServerStreamForClient[chatv1.JoinChatResponse], error)
 	SendMessage(ctx context.Context, userId, username, message string) (*connect.Response[chatv1.SendMessageResponse], error)
 	LeaveChat(ctx context.Context, userId, username string) (*connect.Response[chatv1.LeaveChatResponse], error)
+	GetChatHistory(ctx context.Context, chatRoom string) (*connect.Response[chatv1.GetChatHistoryResponse], error)
 }
 
 type chatClient struct {
@@ -26,7 +27,7 @@ func NewChatClient(service chatv1connect.ChatServiceClient) ChatClient {
 	}
 }
 
-func (client *chatClient) JoinChat(ctx context.Context, userId, username, chatroom string) (*connect.ServerStreamForClient[chatv1.JoinChatResponse], error) {
+func (client *chatClient) JoinChat(ctx context.Context, userId, username, chatRoom string) (*connect.ServerStreamForClient[chatv1.JoinChatResponse], error) {
 	request := &connect.Request[chatv1.JoinChatRequest]{
 		Msg: &chatv1.JoinChatRequest{
 			User: &chatv1.User{
@@ -34,7 +35,7 @@ func (client *chatClient) JoinChat(ctx context.Context, userId, username, chatro
 				Username: username,
 			},
 			ChatRoom: &chatv1.ChatRoom{
-				RoomId: chatroom,
+				RoomId: chatRoom,
 			},
 		},
 	}
@@ -81,6 +82,23 @@ func (client *chatClient) LeaveChat(ctx context.Context, userId, username string
 	}
 
 	res, err := client.service.LeaveChat(ctx, request)
+	if err != nil {
+		return nil, err
+	}
+
+	return res, nil
+}
+
+func (client *chatClient) GetChatHistory(ctx context.Context, chatRoom string) (*connect.Response[chatv1.GetChatHistoryResponse], error) {
+	request := &connect.Request[chatv1.GetChatHistoryRequest]{
+		Msg: &chatv1.GetChatHistoryRequest{
+			ChatRoom: &chatv1.ChatRoom{
+				RoomId: chatRoom,
+			},
+		},
+	}
+
+	res, err := client.service.GetChatHistory(ctx, request)
 	if err != nil {
 		return nil, err
 	}

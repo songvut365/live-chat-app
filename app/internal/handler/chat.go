@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	chatv1 "live-chat-app/app/internal/grpc/gen/chat/v1"
+	"live-chat-app/app/internal/grpc/gen/chat/v1/chatv1connect"
 	"live-chat-app/app/internal/manager"
 	"live-chat-app/app/internal/service"
 	"log"
@@ -19,19 +20,13 @@ var (
 	ServerUsername string = "server"
 )
 
-type ChatServerHandler interface {
-	JoinChat(context.Context, *connect.Request[chatv1.JoinChatRequest], *connect.ServerStream[chatv1.JoinChatResponse]) error
-	SendMessage(context.Context, *connect.Request[chatv1.SendMessageRequest]) (*connect.Response[chatv1.SendMessageResponse], error)
-	LeaveChat(context.Context, *connect.Request[chatv1.LeaveChatRequest]) (*connect.Response[chatv1.LeaveChatResponse], error)
-}
-
 type chatServerHandler struct {
 	chatHistoryService    service.ChatHistoryService
 	chatRoomManager       manager.ChatRoomManager
 	leaveChatCheckerDelay time.Duration
 }
 
-func NewChatServerHandler(chatHistoryService service.ChatHistoryService, chatRoomManager manager.ChatRoomManager, leaveChatCheckerDelay time.Duration) ChatServerHandler {
+func NewChatServerHandler(chatHistoryService service.ChatHistoryService, chatRoomManager manager.ChatRoomManager, leaveChatCheckerDelay time.Duration) chatv1connect.ChatServiceHandler {
 	return &chatServerHandler{
 		chatHistoryService:    chatHistoryService,
 		chatRoomManager:       chatRoomManager,
@@ -121,6 +116,21 @@ func (h *chatServerHandler) LeaveChat(ctx context.Context, req *connect.Request[
 	return &connect.Response[chatv1.LeaveChatResponse]{
 		Msg: &chatv1.LeaveChatResponse{
 			User: req.Msg.User,
+		},
+	}, nil
+}
+
+func (h *chatServerHandler) GetChatHistory(ctx context.Context, req *connect.Request[chatv1.GetChatHistoryRequest]) (*connect.Response[chatv1.GetChatHistoryResponse], error) {
+	chatRoom := req.Msg.ChatRoom.RoomId
+
+	chatHistoryMessages, err := h.chatHistoryService.GetMessages(ctx, chatRoom)
+	if err != nil {
+		return nil, err
+	}
+
+	return &connect.Response[chatv1.GetChatHistoryResponse]{
+		Msg: &chatv1.GetChatHistoryResponse{
+			Message: chatHistoryMessages,
 		},
 	}, nil
 }

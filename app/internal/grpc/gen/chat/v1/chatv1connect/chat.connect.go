@@ -39,14 +39,18 @@ const (
 	ChatServiceSendMessageProcedure = "/chat.v1.ChatService/SendMessage"
 	// ChatServiceLeaveChatProcedure is the fully-qualified name of the ChatService's LeaveChat RPC.
 	ChatServiceLeaveChatProcedure = "/chat.v1.ChatService/LeaveChat"
+	// ChatServiceGetChatHistoryProcedure is the fully-qualified name of the ChatService's
+	// GetChatHistory RPC.
+	ChatServiceGetChatHistoryProcedure = "/chat.v1.ChatService/GetChatHistory"
 )
 
 // These variables are the protoreflect.Descriptor objects for the RPCs defined in this package.
 var (
-	chatServiceServiceDescriptor           = v1.File_chat_v1_chat_proto.Services().ByName("ChatService")
-	chatServiceJoinChatMethodDescriptor    = chatServiceServiceDescriptor.Methods().ByName("JoinChat")
-	chatServiceSendMessageMethodDescriptor = chatServiceServiceDescriptor.Methods().ByName("SendMessage")
-	chatServiceLeaveChatMethodDescriptor   = chatServiceServiceDescriptor.Methods().ByName("LeaveChat")
+	chatServiceServiceDescriptor              = v1.File_chat_v1_chat_proto.Services().ByName("ChatService")
+	chatServiceJoinChatMethodDescriptor       = chatServiceServiceDescriptor.Methods().ByName("JoinChat")
+	chatServiceSendMessageMethodDescriptor    = chatServiceServiceDescriptor.Methods().ByName("SendMessage")
+	chatServiceLeaveChatMethodDescriptor      = chatServiceServiceDescriptor.Methods().ByName("LeaveChat")
+	chatServiceGetChatHistoryMethodDescriptor = chatServiceServiceDescriptor.Methods().ByName("GetChatHistory")
 )
 
 // ChatServiceClient is a client for the chat.v1.ChatService service.
@@ -54,6 +58,7 @@ type ChatServiceClient interface {
 	JoinChat(context.Context, *connect.Request[v1.JoinChatRequest]) (*connect.ServerStreamForClient[v1.JoinChatResponse], error)
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	LeaveChat(context.Context, *connect.Request[v1.LeaveChatRequest]) (*connect.Response[v1.LeaveChatResponse], error)
+	GetChatHistory(context.Context, *connect.Request[v1.GetChatHistoryRequest]) (*connect.Response[v1.GetChatHistoryResponse], error)
 }
 
 // NewChatServiceClient constructs a client for the chat.v1.ChatService service. By default, it uses
@@ -84,14 +89,21 @@ func NewChatServiceClient(httpClient connect.HTTPClient, baseURL string, opts ..
 			connect.WithSchema(chatServiceLeaveChatMethodDescriptor),
 			connect.WithClientOptions(opts...),
 		),
+		getChatHistory: connect.NewClient[v1.GetChatHistoryRequest, v1.GetChatHistoryResponse](
+			httpClient,
+			baseURL+ChatServiceGetChatHistoryProcedure,
+			connect.WithSchema(chatServiceGetChatHistoryMethodDescriptor),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
 // chatServiceClient implements ChatServiceClient.
 type chatServiceClient struct {
-	joinChat    *connect.Client[v1.JoinChatRequest, v1.JoinChatResponse]
-	sendMessage *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
-	leaveChat   *connect.Client[v1.LeaveChatRequest, v1.LeaveChatResponse]
+	joinChat       *connect.Client[v1.JoinChatRequest, v1.JoinChatResponse]
+	sendMessage    *connect.Client[v1.SendMessageRequest, v1.SendMessageResponse]
+	leaveChat      *connect.Client[v1.LeaveChatRequest, v1.LeaveChatResponse]
+	getChatHistory *connect.Client[v1.GetChatHistoryRequest, v1.GetChatHistoryResponse]
 }
 
 // JoinChat calls chat.v1.ChatService.JoinChat.
@@ -109,11 +121,17 @@ func (c *chatServiceClient) LeaveChat(ctx context.Context, req *connect.Request[
 	return c.leaveChat.CallUnary(ctx, req)
 }
 
+// GetChatHistory calls chat.v1.ChatService.GetChatHistory.
+func (c *chatServiceClient) GetChatHistory(ctx context.Context, req *connect.Request[v1.GetChatHistoryRequest]) (*connect.Response[v1.GetChatHistoryResponse], error) {
+	return c.getChatHistory.CallUnary(ctx, req)
+}
+
 // ChatServiceHandler is an implementation of the chat.v1.ChatService service.
 type ChatServiceHandler interface {
 	JoinChat(context.Context, *connect.Request[v1.JoinChatRequest], *connect.ServerStream[v1.JoinChatResponse]) error
 	SendMessage(context.Context, *connect.Request[v1.SendMessageRequest]) (*connect.Response[v1.SendMessageResponse], error)
 	LeaveChat(context.Context, *connect.Request[v1.LeaveChatRequest]) (*connect.Response[v1.LeaveChatResponse], error)
+	GetChatHistory(context.Context, *connect.Request[v1.GetChatHistoryRequest]) (*connect.Response[v1.GetChatHistoryResponse], error)
 }
 
 // NewChatServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -140,6 +158,12 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 		connect.WithSchema(chatServiceLeaveChatMethodDescriptor),
 		connect.WithHandlerOptions(opts...),
 	)
+	chatServiceGetChatHistoryHandler := connect.NewUnaryHandler(
+		ChatServiceGetChatHistoryProcedure,
+		svc.GetChatHistory,
+		connect.WithSchema(chatServiceGetChatHistoryMethodDescriptor),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chat.v1.ChatService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case ChatServiceJoinChatProcedure:
@@ -148,6 +172,8 @@ func NewChatServiceHandler(svc ChatServiceHandler, opts ...connect.HandlerOption
 			chatServiceSendMessageHandler.ServeHTTP(w, r)
 		case ChatServiceLeaveChatProcedure:
 			chatServiceLeaveChatHandler.ServeHTTP(w, r)
+		case ChatServiceGetChatHistoryProcedure:
+			chatServiceGetChatHistoryHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -167,4 +193,8 @@ func (UnimplementedChatServiceHandler) SendMessage(context.Context, *connect.Req
 
 func (UnimplementedChatServiceHandler) LeaveChat(context.Context, *connect.Request[v1.LeaveChatRequest]) (*connect.Response[v1.LeaveChatResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.ChatService.LeaveChat is not implemented"))
+}
+
+func (UnimplementedChatServiceHandler) GetChatHistory(context.Context, *connect.Request[v1.GetChatHistoryRequest]) (*connect.Response[v1.GetChatHistoryResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chat.v1.ChatService.GetChatHistory is not implemented"))
 }

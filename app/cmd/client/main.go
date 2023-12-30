@@ -5,16 +5,12 @@ import (
 	"live-chat-app/app/internal/client"
 	"live-chat-app/app/internal/grpc/gen/chat/v1/chatv1connect"
 	"live-chat-app/app/internal/manager"
-	"live-chat-app/app/internal/repository"
-	"live-chat-app/app/internal/service"
 	"log"
 	"net/http"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
-	"go.mongodb.org/mongo-driver/mongo"
-	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
 const (
@@ -25,21 +21,7 @@ const (
 func main() {
 	ctx := context.Background()
 
-	// connect database
-	mongoClient, err := mongo.Connect(ctx, options.Client().ApplyURI(mongodbUri))
-	if err != nil {
-		log.Fatalf("connect mongodb error: %s", err.Error())
-	}
-
-	err = mongoClient.Ping(ctx, nil)
-	if err != nil {
-		log.Fatalf("ping mongodb error: %s", err.Error())
-	}
-	defer mongoClient.Disconnect(ctx)
-
 	// client, manager, service, repository
-	chatHistoryRepository := repository.NewChatHistoryRepository(mongoClient)
-	chatHistoryService := service.NewChatHistoryService(chatHistoryRepository)
 	chatIOManager := manager.NewChatIOManager()
 	chatServiceClient := chatv1connect.NewChatServiceClient(http.DefaultClient, address, connect.WithGRPC())
 	chatClient := client.NewChatClient(chatServiceClient)
@@ -59,13 +41,13 @@ func main() {
 	}
 
 	// get all chat history
-	historyMessages, err := chatHistoryService.GetMessages(ctx, chatRoom)
+	chatHistory, err := chatClient.GetChatHistory(ctx, chatRoom)
 	if err != nil {
 		log.Fatalf("get chat history error: %s", err.Error())
 	}
 
-	for _, historyMessage := range historyMessages {
-		chatIOManager.DisplayMessage(historyMessage, username)
+	for _, chatHistoryMessage := range chatHistory.Msg.Message {
+		chatIOManager.DisplayMessage(chatHistoryMessage, username)
 	}
 
 	// join chat server
