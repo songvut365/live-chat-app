@@ -5,11 +5,13 @@ import (
 	"fmt"
 	chatv1 "live-chat-app/app/internal/grpc/gen/chat/v1"
 	"live-chat-app/app/internal/manager"
+	"live-chat-app/app/internal/service"
 	"log"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/google/uuid"
+	"github.com/pkg/errors"
 )
 
 var (
@@ -24,12 +26,14 @@ type ChatServerHandler interface {
 }
 
 type chatServerHandler struct {
+	chatHistoryService    service.ChatHistoryService
 	chatRoomManager       manager.ChatRoomManager
 	leaveChatCheckerDelay time.Duration
 }
 
-func NewChatServerHandler(chatRoomManager manager.ChatRoomManager, leaveChatCheckerDelay time.Duration) ChatServerHandler {
+func NewChatServerHandler(chatHistoryService service.ChatHistoryService, chatRoomManager manager.ChatRoomManager, leaveChatCheckerDelay time.Duration) ChatServerHandler {
 	return &chatServerHandler{
+		chatHistoryService:    chatHistoryService,
 		chatRoomManager:       chatRoomManager,
 		leaveChatCheckerDelay: leaveChatCheckerDelay,
 	}
@@ -42,7 +46,7 @@ func (h *chatServerHandler) JoinChat(ctx context.Context, req *connect.Request[c
 
 	h.chatRoomManager.AddConnection(manager.RoomId(roomId), userId, stream)
 
-	connections := h.chatRoomManager.GetAllConnectionByUserId(userId)
+	_, connections := h.chatRoomManager.GetAllConnectionByUserId(userId)
 	for _, connection := range connections {
 		connection.Send(&chatv1.JoinChatResponse{
 			Message: &chatv1.Message{
@@ -72,11 +76,17 @@ func (h *chatServerHandler) SendMessage(ctx context.Context, req *connect.Reques
 	log.Printf("send message request: %+v", req.Msg)
 	userId := manager.UserId(req.Msg.Message.Sender.UserId)
 
-	connections := h.chatRoomManager.GetAllConnectionByUserId(userId)
+	roomId, connections := h.chatRoomManager.GetAllConnectionByUserId(userId)
 	for _, connection := range connections {
 		connection.Send(&chatv1.JoinChatResponse{
 			Message: req.Msg.Message,
 		})
+
+	}
+
+	err := h.chatHistoryService.SaveMessage(ctx, roomId, req.Msg.Message)
+	if err != nil {
+		return nil, errors.Wrap(err, "save chat history error")
 	}
 
 	return &connect.Response[chatv1.SendMessageResponse]{
@@ -90,7 +100,7 @@ func (h *chatServerHandler) LeaveChat(ctx context.Context, req *connect.Request[
 	log.Printf("leave chat request: %+v", req.Msg)
 	userId := manager.UserId(req.Msg.User.UserId)
 
-	connections := h.chatRoomManager.GetAllConnectionByUserId(userId)
+	_, connections := h.chatRoomManager.GetAllConnectionByUserId(userId)
 	for _, connection := range connections {
 		connection.Send(&chatv1.JoinChatResponse{
 			Message: &chatv1.Message{

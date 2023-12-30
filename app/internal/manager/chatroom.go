@@ -15,7 +15,7 @@ type (
 
 type ChatRoomManager interface {
 	AddConnection(roomId RoomId, userId UserId, stream *connect.ServerStream[chatv1.JoinChatResponse])
-	GetAllConnectionByUserId(userId UserId) []*connect.ServerStream[chatv1.JoinChatResponse]
+	GetAllConnectionByUserId(userId UserId) (chatRoomName string, connections []*connect.ServerStream[chatv1.JoinChatResponse])
 	RemoveConnection(userId UserId)
 	LeaveChatSignal() <-chan UserId
 	SendLeaveChatSignal(userId UserId)
@@ -47,14 +47,16 @@ func (manager *chatRoomManager) AddConnection(roomId RoomId, userId UserId, stre
 	log.Printf("chat rooms: %+v", manager.ChatRooms)
 }
 
-func (manager *chatRoomManager) GetAllConnectionByUserId(userId UserId) []*connect.ServerStream[chatv1.JoinChatResponse] {
+func (manager *chatRoomManager) GetAllConnectionByUserId(userId UserId) (chatRoomName string, connections []*connect.ServerStream[chatv1.JoinChatResponse]) {
 	manager.chatRoomsMutex.Lock()
 	defer manager.chatRoomsMutex.Unlock()
 
-	connections := []*connect.ServerStream[chatv1.JoinChatResponse]{}
+	connections = []*connect.ServerStream[chatv1.JoinChatResponse]{}
 
-	for _, chatRoom := range manager.ChatRooms {
+	for roomId, chatRoom := range manager.ChatRooms {
 		if _, ok := chatRoom[userId]; ok {
+			chatRoomName = string(roomId)
+
 			for _, connection := range chatRoom {
 				connections = append(connections, connection)
 			}
@@ -63,7 +65,7 @@ func (manager *chatRoomManager) GetAllConnectionByUserId(userId UserId) []*conne
 		continue
 	}
 
-	return connections
+	return chatRoomName, connections
 }
 
 func (manager *chatRoomManager) RemoveConnection(userId UserId) {
